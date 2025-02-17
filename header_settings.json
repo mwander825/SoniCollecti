@@ -1,0 +1,28 @@
+{
+	"foobar2000": {
+		"time_local": 0,
+		"time_gmt": 1,
+		"duration": 2,
+		"artist": 3,
+		"title": 4,
+		"album": 5,
+		"album_artist": 6,
+		"genre": 7,
+		"release_year": 8,
+		"codec": 9,
+		"foobar_version": 10
+	},
+	"pano_scrobbler": {
+		"time_local": 0,
+		"time_gmt": 1,
+		"artist": 2,
+		"title": 3,
+		"album": 4,
+		"album_artist": 5,
+		"duration": 6,
+		"media_player_package": 7,
+		"media_player_name": 8,
+		"media_player_version": 9,
+		"event": 10
+	}
+}
