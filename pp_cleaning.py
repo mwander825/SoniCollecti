@@ -10,7 +10,7 @@ import re
 import glob
 from pathlib import Path
 pd.set_option('display.max_rows', 500)
-pd.set_option('display.max_columns', 500)
+pd.set_option('display.max_columns', 20)
 pd.set_option('display.width', 1000)
 
 d_match = re.compile(r"\:")
@@ -44,9 +44,9 @@ def standardize_clean(df: pd.DataFrame, header_cols: dict) -> pd.DataFrame:
     # rename columns
     df = df.rename(columns={df.columns[v]: k for k,v in header_cols.items()})
 
-    # double quote quoted fields
-    for col in [qf for qf in quoted_fields if qf in df.columns]:
-        df.loc[:, col] = df.loc[:, col].astype(str).apply(lambda s: f'"{s}"')
+    # # double quote quoted fields
+    # for col in [qf for qf in quoted_fields if qf in df.columns]:
+    #     df.loc[:, col] = df.loc[:, col].astype(str).apply(lambda s: f'"{s}"')
 
     # event times
     df["time_local"] = time_convert_s(df["time_local"])
