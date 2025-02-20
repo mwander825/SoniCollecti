@@ -11,9 +11,9 @@ from PIL import Image
 from io import BytesIO
 from base64 import b64encode, b64decode
 import h5py
-# pd.set_option('display.max_rows', 500)
-# pd.set_option('display.max_columns', 20)
-# pd.set_option('display.width', 1000)
+pd.set_option('display.max_rows', 500)
+pd.set_option('display.max_columns', 20)
+pd.set_option('display.width', 1000)
 
 # musicbrainz API calling for album art (maybe durations too?)
 # root_api_url = r"https://musicbrainz.org/ws/2/"
@@ -64,20 +64,21 @@ def write_hdf5_cover(release_id: str, cover_bytes: bytes, cover_size: tuple=(500
 def mbz_get_release(artist: str, album: str) -> Tuple[dict, str]:
     # most confident search result
     # get mbz ID for later
-    releases = mbz.search_releases(artist=artist, release=album)["release-list"]
+    releases = mbz.search_releases(limit=100, artist=artist, release=album)["release-list"]
     if not releases:
         print(f"Release not found in the Musicbrainz database: {artist} - {album}\n")
         return {}, ""
 
     # find first one with approved FRONT cover art
     # must match name of album and artist
-    sim_thresh = 5
+    sim_thresh = 2
     for release in releases:
         # levenshtein distance on cleaned strings
         album_title = release["title"]
-        # artist_names = set([ac["name"] for ac in release["artist-credit"]])
+        artist_names = set([ac["name"] for ac in release["artist-credit"] if isinstance(ac, dict)] + [release['artist-credit-phrase']])
+        artist_sims = [ldist(css(artist), css(artist_name)) <= 2 for artist_name in artist_names]
 
-        if ldist(css(album), css(album_title)) <= sim_thresh:
+        if ldist(css(album), css(album_title)) <= sim_thresh and any(artist_sims):
             release_id = release["id"]
             try:
                 image_list = mbz.get_image_list(release_id)["images"]
@@ -113,9 +114,9 @@ def update_db_mbids(df: pd.DataFrame) -> None:
 
     # iterate over False "logged" values
     # don't reset index
-    print(df_releases.columns)
+    # print(df_releases.columns)
     df_releases_tbl = df_releases[(~df_releases["logged"]) | (df_releases["mbid"].isna())].reset_index(drop=True)
-    print(df_releases_tbl)
+    # print(df_releases_tbl)
     if not df_releases_tbl.empty:
         for idx, row in tqdm(df_releases_tbl.loc[:, ["artist", "album", "logged"]].iterrows(), total=len(df_releases_tbl)):
             # print(idx)
@@ -161,7 +162,17 @@ if __name__ == "__main__":
     update_db_mbids(pd.read_csv("data/combined/combined.csv"))
     update_db_covers()
 
-    # cover image scrutiny and testing
-    # df_mbid = pd.read_csv("data/combined/mb_ids.csv")
-    # for idx, mbid in enumerate(df_mbid["mbid"].dropna()):
-    #     write_img_from_hdf5(mbid, str(idx))
+    # testing specific searches
+    # test_search = mbz.search_releases(artist="SoGreatAndPowerful", release="Starsailor")["release-list"]
+    # print([result['title'] for result in test_search])
+    # print(ldist(css('[untitled]'), css("Section.80")))
+    # print(mbz_get_release("Fontaines D.C.", "Romance"))
+    #
+    # # cover image scrutiny and testing
+    # # df_mbid = pd.read_csv("data/combined/mb_ids.csv")
+    # # for idx, mbid in enumerate(df_mbid["mbid"].dropna()):
+    # #     write_img_from_hdf5(mbid, mbid)
+    #
+    # # by mbid
+    # mbz.get_release_by_id("17696ce7-ba44-4e66-8ca3-8b1d2ec47d31")
+    # Image.open(BytesIO(mbz.get_image("e0667db5-f3a5-3df7-ab86-b5d492542263", coverid="front", size="500", entitytype="release"))).show()
