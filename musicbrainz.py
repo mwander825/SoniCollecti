@@ -2,18 +2,18 @@ import musicbrainzngs as mbz
 from typing import Tuple
 import json
 import pandas as pd
-from PIL import Image
-import io
-import requests
 from jellyfish import levenshtein_distance as ldist
-import time
 from helpers import css
 import numpy as np
 from tqdm import tqdm
 from pathlib import Path
-pd.set_option('display.max_rows', 500)
-pd.set_option('display.max_columns', 20)
-pd.set_option('display.width', 1000)
+from PIL import Image
+from io import BytesIO
+from base64 import b64encode, b64decode
+import h5py
+# pd.set_option('display.max_rows', 500)
+# pd.set_option('display.max_columns', 20)
+# pd.set_option('display.width', 1000)
 
 # musicbrainz API calling for album art (maybe durations too?)
 # root_api_url = r"https://musicbrainz.org/ws/2/"
@@ -24,26 +24,42 @@ app = "SoniCollecti"
 version = "1.0"
 mbz.set_useragent(app, version, contact="mjwander211@gmail.com")
 
-def write_json_cover(release_id: str, cover_bytes: bytes) -> None:
-    file_path = Path("data/mb_releases.json")
-    entry_dict = {release_id: str(cover_bytes)}
+def write_img_from_hdf5(release_id: str, file_name: str) -> None:
+    file_path = Path("data/combined/mb_covers.h5")
+    with h5py.File(file_path, 'r') as file:
+        idx = np.where(file["mbid"][:] == release_id.encode())[0]
+        img_data = file["covers"][idx][0]
+    Image.fromarray(img_data).save(Path("data/images_testing") / f"{file_name}.jpg")
+
+def write_hdf5_cover(release_id: str, cover_bytes: bytes, cover_size: tuple=(500,500)) -> None:
+    file_path = Path("data/combined/mb_covers.h5")
+    # entry_dict = {release_id: cover_bytes}
+    # MUST RESIZE FOR STANDARDIZATION!
+    img_data = np.asarray(Image.open(BytesIO(cover_bytes)).resize(cover_size, Image.LANCZOS))
+
+    # I CAN'T BELIEVE GRAYSCALE IMAGES DESTROY THIS!
+    if len(img_data.shape) == 2:
+        print(img_data.shape)
+        img_data = np.dstack([img_data]*3)
 
     if file_path.is_file():
-        with open(file_path, "r") as file:
-            # update
-            data = json.load(file)
-            if release_id in set(data.keys()):
-                print("Release already logged (id)")
-                return
-            else:
-                data[release_id] = entry_dict[release_id]
-        # separate overwrite step
-        with open(file_path, "w") as file:
-            json.dump(data, file)
+        with h5py.File(file_path, 'r+') as file:
+            # resizing
+            # "appending"
+            file["mbid"].resize((file["mbid"].shape[0] + 1), axis=0)
+            file["mbid"][-1] = release_id
+
+            file["covers"].resize(file["covers"].shape[0] + 1, axis=0)
+            file["covers"][-1] = img_data
+
     else:
-        with open(file_path, "w") as file:
-            # create
-            json.dump(entry_dict, file)
+        # Create a new HDF5 file
+        with h5py.File(file_path, "w") as file:
+            # Create a dataset in the file
+            # OPAQUE for binary, wrap in np.void()
+            file.create_dataset("covers", shape=(1, *np.shape(img_data)), maxshape=(None, *np.shape(img_data)), dtype=h5py.h5t.STD_U8BE, data=img_data)
+            file.create_dataset("mbid", shape=(1,), maxshape=(None,), dtype=h5py.string_dtype(length=36), data=release_id)
+
 
 def mbz_get_release(artist: str, album: str) -> Tuple[dict, str]:
     # most confident search result
@@ -127,10 +143,10 @@ def update_db_covers() -> None:
         return
     df_mbids = set(pd.read_csv(releases_file_path).dropna().loc[:, "mbid"].values)
 
-    covers_file_path = file_dir / "mb_covers.json"
+    covers_file_path = file_dir / "mb_covers.h5"
     if covers_file_path.is_file():
-        with open(covers_file_path, "r") as file:
-            releases_logged = set(json.load(file).keys())
+        with h5py.File(covers_file_path, 'r') as file:
+            releases_logged = set(map(lambda s: s.decode(), file['mbid'][:]))
     else:
         releases_logged = set()
 
@@ -139,13 +155,13 @@ def update_db_covers() -> None:
     if covers_tbdl:
         for mbid in tqdm(covers_tbdl, total=len(covers_tbdl)):
             cover_bytes = mbz_get_cover(mbid)
-            write_json_cover(mbid, cover_bytes)
+            write_hdf5_cover(mbid, cover_bytes)
 
 if __name__ == "__main__":
-    pass
     update_db_mbids(pd.read_csv("data/combined/combined.csv"))
-    # update_db_covers()
-    # release, release_id = mbz_get_release("Cassandra Jenkins", "My Light, My Destroyer")
-    # cover_bytes = mbz_get_cover(release_id)
-    # write_json("Cassandra Jenkins", "My Light, My Destroyer", release_id, cover_bytes)
-    # image = Image.open(io.BytesIO(cover_bytes))
+    update_db_covers()
+
+    # cover image scrutiny and testing
+    # df_mbid = pd.read_csv("data/combined/mb_ids.csv")
+    # for idx, mbid in enumerate(df_mbid["mbid"].dropna()):
+    #     write_img_from_hdf5(mbid, str(idx))

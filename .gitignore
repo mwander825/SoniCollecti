@@ -3,6 +3,8 @@
 *.sh
 data/*.csv
 data/*.json
+data/combined
+data/images_testing
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
