@@ -75,7 +75,9 @@ def standardize_clean(df: pd.DataFrame, header_cols: dict) -> pd.DataFrame:
     try:
         df["release_year"] = df["release_year"].apply(lambda y: int(year_match.findall(y)[0]))
     except KeyError as e:
-        print(e)
+        pass
+        # print(e)
+
     return df
 
 def load_data():
@@ -89,11 +91,19 @@ def load_data():
         else:
             df = pd.concat((df, standardize_clean(pd.read_csv(file_path), header_cols=header_cols[file_name])))
     end_time = time.time()
-    print(f"Loaded in {end_time - start_time}")
+    print(f"Data loaded in {round(end_time - start_time, 2)} s")
     return df
+
+def write_data(df: pd.DataFrame):
+    combined_path = Path("data/combined")
+    if not combined_path.is_dir():
+        combined_path.mkdir()
+    df.to_csv(combined_path / "combined.csv", index=False)
+    print(f"Combined dataframe written to {combined_path}/combined.csv\n")
 
 if __name__ == "__main__":
     df = load_data()
+    write_data(df)
     #df = pd.read_csv("data/foobar2000.csv")
     # dff = pd.read_csv("data/pano_scrobbler.csv")
     #new_df = standardize_clean(df, header_cols["foobar2000"])
