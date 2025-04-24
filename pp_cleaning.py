@@ -5,6 +5,7 @@ from datetime import datetime
 import time
 import pandas as pd
 import json
+import numpy as np
 from typing import Union
 import re
 import glob
@@ -15,9 +16,24 @@ pd.set_option('display.width', 1000)
 
 d_match = re.compile(r"\:")
 year_match = re.compile(r"[0-9]{4}")
+unc_quote_match = re.compile(r"[’]")
+unc_dquote_match = re.compile(r"[“”]")
+unc_quest_match = re.compile(r"[？]")
+unc_excl_match = re.compile(r"[！]")
+unc_ell_match = re.compile(r"[…]")
+unc_dash_match = re.compile(r"[–‐—]")
 
 with open("header_settings.json", "r") as file:
     header_cols = json.load(file)
+
+def replace_unicode_specials(s: str) -> str:
+    return unc_dash_match.sub('-',
+           unc_ell_match.sub('...',
+           unc_excl_match.sub('!',
+           unc_quest_match.sub('?',
+           unc_dquote_match.sub('"',
+           unc_quote_match.sub("'", s)
+           ))))) if s not in {pd.NA, np.nan, None} else s
 
 def time_convert_s(time_series: pd.Series) -> pd.Series:
     # is it already a datetime?
@@ -40,13 +56,18 @@ def time_convert_s(time_series: pd.Series) -> pd.Series:
 def standardize_clean(df: pd.DataFrame, header_cols: dict) -> pd.DataFrame:
     quoted_fields = ["artist", "title", "album", "album_artist", "genre"]
 
-
     # rename columns
     df = df.rename(columns={df.columns[v]: k for k,v in header_cols.items()})
 
     # # double quote quoted fields
     # for col in [qf for qf in quoted_fields if qf in df.columns]:
     #     df.loc[:, col] = df.loc[:, col].astype(str).apply(lambda s: f'"{s}"')
+
+    # unicode specials
+    df["artist"] = df["artist"].apply(replace_unicode_specials)
+    df["title"] = df["title"].apply(replace_unicode_specials)
+    df["album"] = df["album"].apply(replace_unicode_specials)
+    df["album_artist"] = df["album_artist"].apply(replace_unicode_specials)
 
     # event times
     df["time_local"] = time_convert_s(df["time_local"])
@@ -92,7 +113,7 @@ def load_data():
             df = pd.concat((df, standardize_clean(pd.read_csv(file_path), header_cols=header_cols[file_name])))
     end_time = time.time()
     print(f"Data loaded in {round(end_time - start_time, 2)} s")
-    return df
+    return df.sort_values("time_local")
 
 def write_data(df: pd.DataFrame):
     combined_path = Path("data/combined")
