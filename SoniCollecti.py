@@ -1,4 +1,3 @@
-import tkinter as tk
 import pandas as pd
 from pp_cleaning import load_data
 from taptop import top_chart
