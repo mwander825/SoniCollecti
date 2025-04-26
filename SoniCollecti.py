@@ -5,6 +5,11 @@ from taptop import top_chart
 from PySide6 import QtCore, QtWidgets, QtGui
 import sys
 
+
+class Thread(QtCore.QThread):
+    def run(self):
+        QtCore.QThread.sleep(2)
+
 class Application(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
