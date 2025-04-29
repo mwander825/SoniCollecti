@@ -15,6 +15,7 @@ pd.set_option('display.width', 1000)
 # Inspired by https://www.tapmusic.net/
 
 feat_match = re.compile(r"(?i)(\(feat\..+\))|(\(with.+\))|(\(featuring.+\))")
+image_dir = Path(__file__).parents[0] / "images"
 
 def load_covers(df: pd.DataFrame=None, mbids: Iterable=None) -> Tuple[pd.DataFrame, dict]:
     file_path = Path("data/combined/release_covers.h5")
@@ -208,12 +209,18 @@ def top_chart(df: pd.DataFrame,
         for j in range(grid_size[1]):
             chart_grid.paste(squares[squidx], (j * art_size[0], i * art_size[1]))
             squidx += 1
+
+    img_filename = f"{grid_size[0]}x{grid_size[1]}_{chart_type}_{date_start.strftime("%Y_%m_%d")}_to_{date_end.strftime("%Y_%m_%d")}"
+
+    if not image_dir.is_dir():
+        image_dir.mkdir()
+    chart_grid.save((image_dir / img_filename).as_posix() + ".jpg")
     chart_grid.show()
 
 if __name__ == "__main__":
     # df_mbid, covers_dict = load_covers()
     # df = pd.read_csv("data/combined/combined.csv")
     top_chart(pd.read_csv("data/combined/combined.csv"),
-              date_start="2025-04-01",
+              date_start="2024-12-01",
               date_end="2025-04-30",
               chart_type="album", grid_size=(6,6))

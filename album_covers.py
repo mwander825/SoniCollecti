@@ -11,6 +11,7 @@ from PIL import Image
 from io import BytesIO
 import requests
 import h5py
+import time
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 20)
 pd.set_option('display.width', 1000)
@@ -169,7 +170,7 @@ def update_db_mbids(df: pd.DataFrame) -> None:
                 # iTunes
                 release, release_id = itunes_get_release(row.iloc[0], row.iloc[1])
                 df_releases_tbl.iloc[idx, list(df_releases_tbl.columns).index("mbid")] = "i_" + release_id if release_id else np.nan
-
+            time.sleep(1)
         # concat with those to-be-logged
         # write mbids.csv
         pd.concat((df_releases_logged.loc[:, ["artist", "album", "mbid"]],
@@ -195,7 +196,7 @@ def update_db_covers() -> None:
 
     # only get mbids which don't have logged covers to-be-downloaded
     covers_tbdl = df_mbids.difference(releases_logged)
-    print(covers_tbdl)
+    #print(covers_tbdl)
     if covers_tbdl:
         for mbid in tqdm(covers_tbdl, total=len(covers_tbdl)):
             if mbid[:2] == "m_":
@@ -203,7 +204,7 @@ def update_db_covers() -> None:
             elif mbid[:2] == "i_":
                 cover_bytes = itunes_get_cover(release_id=mbid[2:])
             write_hdf5_cover(mbid, cover_bytes)
-
+            time.sleep(1)
 if __name__ == "__main__":
     update_db_mbids(pd.read_csv("data/combined/combined.csv"))
     update_db_covers()
