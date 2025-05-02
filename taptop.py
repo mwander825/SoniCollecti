@@ -17,6 +17,20 @@ pd.set_option('display.width', 1000)
 feat_match = re.compile(r"(?i)(\(feat\..+\))|(\(with.+\))|(\(featuring.+\))")
 image_dir = Path(__file__).parents[0] / "images"
 
+def format_duration(duration: int) -> str:
+    # duration in milliseconds
+    seconds = duration / 1000
+    time_counts = []
+
+    for s_time, tc in zip((86400, 3600, 60), ("d", "h", "m")):
+        if seconds / s_time >= 1:
+            time_counts.append((int(seconds // s_time), tc))
+            seconds -= s_time * (seconds // s_time)
+    time_counts.append((int(seconds), "s"))
+
+    return " ".join([f"{st}{tc}" for st, tc in time_counts])
+
+
 def load_covers(df: pd.DataFrame=None, mbids: Iterable=None) -> Tuple[pd.DataFrame, dict]:
     file_path = Path("data/combined/release_covers.h5")
     df_mbid = pd.read_csv("data/combined/release_ids.csv")
@@ -125,21 +139,24 @@ def top_chart(df: pd.DataFrame,
 
     if chart_type == "album":
         df_counts = df.groupby(["artist", "album"]) \
-                          .size() \
-                          .reset_index(name="count") \
+                          .agg(count=("album", "count"),
+                               playtime=("duration", "sum")) \
+                          .reset_index() \
                           .sort_values("count", ascending=False) \
                           .iloc[:num_squares + 1,:]
     elif chart_type == "artist":
         df_counts = df.groupby("artist") \
-                          .size() \
-                          .reset_index(name="count") \
+                        .agg(count=("artist", "count"),
+                             playtime=("duration", "sum")) \
+                          .reset_index() \
                           .sort_values("count", ascending=False) \
                           .iloc[:num_squares + 1,:] \
                           .merge(df_artist_album_counts, how="left", on="artist")
     elif chart_type == "track":
         df_counts = df.groupby(["artist", "album", "title"]) \
-                          .size() \
-                          .reset_index(name="count") \
+                        .agg(count=("title", "count"),
+                             playtime=("duration", "sum")) \
+                          .reset_index() \
                           .sort_values("count", ascending=False) \
                           .iloc[:num_squares + 1,:]
     else:
@@ -163,6 +180,7 @@ def top_chart(df: pd.DataFrame,
         album = row.loc['album']
         track = row.loc['title'] if chart_type == "track" else None
         play_count = row.loc['count']
+        play_time = row.loc['playtime']
         mbid = row.loc['mbid']
 
         try:
@@ -183,18 +201,18 @@ def top_chart(df: pd.DataFrame,
             album_string = newline_name(album, max_char)
 
             draw = ImageDraw.Draw(img)
-            draw.text((0,0), f"{artist_string}\n{album_string}\n({play_count})", stroke_width=5, stroke_fill=(0,0,0), font=font)
+            draw.text((0,0), f"{artist_string}\n{album_string}\n({play_count})\n{format_duration(play_time)}", stroke_width=5, stroke_fill=(0,0,0), font=font)
         elif chart_type == "artist":
             artist_string = newline_name(artist, max_char)
 
             draw = ImageDraw.Draw(img)
-            draw.text((0, 0), f"{artist_string}\n({play_count})", stroke_width=5, stroke_fill=(0,0,0), font=font)
+            draw.text((0, 0), f"{artist_string}\n({play_count})\n{format_duration(play_time)}", stroke_width=5, stroke_fill=(0,0,0), font=font)
         elif chart_type == "track":
             artist_string = newline_name(artist, max_char)
             track_string = newline_name(feat_match.sub('', track).strip(), max_char)
 
             draw = ImageDraw.Draw(img)
-            draw.text((0, 0), f"{artist_string}\n{track_string}\n({play_count})", stroke_width=5, stroke_fill=(0,0,0), font=font)
+            draw.text((0, 0), f"{artist_string}\n{track_string}\n({play_count})\n{format_duration(play_time)}", stroke_width=5, stroke_fill=(0,0,0), font=font)
 
         squares.append(img)
 
@@ -219,8 +237,8 @@ def top_chart(df: pd.DataFrame,
 
 if __name__ == "__main__":
     # df_mbid, covers_dict = load_covers()
-    # df = pd.read_csv("data/combined/combined.csv")
+    df = pd.read_csv("data/combined/combined.csv")
     top_chart(pd.read_csv("data/combined/combined.csv"),
               date_start="2024-12-01",
               date_end="2025-04-30",
-              chart_type="album", grid_size=(6,6))
+              chart_type="artist", grid_size=(6,6))
