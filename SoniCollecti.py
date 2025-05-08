@@ -9,28 +9,62 @@ class Thread(QtCore.QThread):
     def run(self):
         QtCore.QThread.sleep(2)
 
-class Application(QtWidgets.QWidget):
+class Application(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
+        self.title = "Soni Collecti"
+        self.left = 0
+        self.top = 0
+        self.width = 720
+        self.height = 400
 
+        self.setWindowTitle(self.title)
+        self.setGeometry(self.left,
+                         self.top,
+                         self.width,
+                         self.height)
+
+        self.tabs = SCTabs()
+        self.setCentralWidget(self.tabs)
+
+        self.show()
+
+class SCTabs(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.layout = QtWidgets.QVBoxLayout(self)
         self.df = load_data()
 
         self.chart_options = ["Album", "Artist", "Track"]
         self.tz_options = ["Local", "GMT"]
 
-        self.layout = QtWidgets.QVBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
+        # initialize tabs
+        self.tabs = QtWidgets.QTabWidget()
+        self.stats_tab = QtWidgets.QWidget()
+        self.chart_tab = QtWidgets.QWidget()
+        self.settings_tab = QtWidgets.QWidget()
+
+        # add tabs
+        self.tabs.addTab(self.stats_tab, "Stats")
+        self.tabs.addTab(self.chart_tab, "Charts")
+        self.tabs.addTab(self.settings_tab, "Settings")
+
+        self.chart_layout = QtWidgets.QVBoxLayout(self.chart_tab)
+        self.chart_layout.setContentsMargins(0, 0, 0, 0)
 
         self.load_timezone()
         self.load_chart_boxes()
+
+        self.layout.addWidget(self.tabs)
+        self.setLayout(self.layout)
 
     def load_timezone(self):
         tz_label = QtWidgets.QLabel("Timezone")
         self.tz_combo = QtWidgets.QComboBox()
         self.tz_combo.addItems(self.tz_options)
 
-        self.layout.addWidget(tz_label)
-        self.layout.addWidget(self.tz_combo)
+        self.chart_layout.addWidget(tz_label)
+        self.chart_layout.addWidget(self.tz_combo)
 
     def load_chart_boxes(self):
         title_label = QtWidgets.QLabel("Chart Generator")
@@ -57,7 +91,7 @@ class Application(QtWidgets.QWidget):
         self.grid_cols_entry = QtWidgets.QLineEdit("3")
 
         # add widget to layout
-        self.layout.addWidget(title_label, alignment=QtCore.Qt.AlignTop)
+        self.chart_layout.addWidget(title_label, alignment=QtCore.Qt.AlignTop)
         layout_chart_buttons.addWidget(generate_button, alignment=QtCore.Qt.AlignTop)
         layout_chart_buttons.addWidget(chart_type_label, alignment=QtCore.Qt.AlignTop)
         layout_chart_buttons.addWidget(self.chart_type_combo, alignment=QtCore.Qt.AlignTop)
@@ -72,7 +106,7 @@ class Application(QtWidgets.QWidget):
         layout_chart_buttons.addWidget(self.grid_cols_entry, alignment=QtCore.Qt.AlignTop)
 
         generate_button.clicked.connect(self.generate_chart)
-        self.layout.addLayout(layout_chart_buttons)
+        self.chart_layout.addLayout(layout_chart_buttons)
 
     @QtCore.Slot()
     def generate_chart(self):
@@ -88,10 +122,6 @@ class Application(QtWidgets.QWidget):
 
 
 if __name__ == "__main__":
-    app = QtWidgets.QApplication([])
-
-    widget = Application()
-    widget.resize(720, 480)
-    widget.show()
-
+    app = QtWidgets.QApplication(sys.argv)
+    ex = Application()
     sys.exit(app.exec())

@@ -152,6 +152,7 @@ def top_chart(df: pd.DataFrame,
                           .sort_values("count", ascending=False) \
                           .iloc[:num_squares + 1,:] \
                           .merge(df_artist_album_counts, how="left", on="artist")
+        print(df_counts, num_squares)
     elif chart_type == "track":
         df_counts = df.groupby(["artist", "album", "title"]) \
                         .agg(count=("title", "count"),
@@ -165,7 +166,7 @@ def top_chart(df: pd.DataFrame,
     # filtered by mbids to lessen load
     df_mbid, covers_dict = load_covers(df=df_counts)
     # print(df_counts)
-    df_counts = df_counts.merge(df_mbid, on=["artist", "album"])
+    df_counts = df_counts.merge(df_mbid, on=["artist", "album"], how="outer")
     # print(df_mbid)
     # print(df_counts)
 
