@@ -166,7 +166,7 @@ def top_chart(df: pd.DataFrame,
     # filtered by mbids to lessen load
     df_mbid, covers_dict = load_covers(df=df_counts)
     # print(df_counts)
-    df_counts = df_counts.merge(df_mbid, on=["artist", "album"], how="outer")
+    df_counts = df_counts.merge(df_mbid, on=["artist", "album"], how="outer").sort_values("count", ascending=False)
     # print(df_mbid)
     # print(df_counts)
 
